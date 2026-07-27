@@ -20,11 +20,12 @@ app = FastAPI(
 
 # ---------------------------------------------------------
 # Load Trained Model & Define Class Names
-# ---------------------------------------------------------
-MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")  # Update filename if using .h5
+# ---------------------------------------------------------  # Update filename if using .h5
 CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]   # Adjust order if different in training
+MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")
+
 try:
-    # Load using keras directly
+    # This line works once 'import keras' is added above!
     model = keras.models.load_model(MODEL_PATH, compile=False)
     print(f"Loaded model successfully from {MODEL_PATH}")
 except Exception as e:
