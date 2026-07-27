@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p models
 
 # Download model directly from GitHub Releases during Docker build
-RUN curl -L -o models/brain_tumor_model.keras "sha256:a56e6e3bc68e39544705a4f6024f6ae24c772bdc284317e1525ddc641c04add9"
+RUN curl -L -o models/brain_tumor_model.keras "https://github.com/Umukundwa004/Summative-MLOP/releases/download/v1.0.0/brain_tumor_model.keras"
 
 # Copy the rest of the application code
 COPY . .
