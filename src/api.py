@@ -18,16 +18,26 @@ app = FastAPI(
     title="Brain Tumor Detection API & Web UI",
     version="1.0.0"
 )
-
+app = FastAPI(title="Brain Tumor Detection API")
 # ---------------------------------------------------------
 # Load Trained Model & Define Class Names
 # ---------------------------------------------------------  # Update filename if using .h5
-CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]   # Adjust order if different in training
+@keras.saving.register_keras_serializable()
+class SafeGlorotUniform(keras.initializers.GlorotUniform):
+    def __init__(self, seed=None, **kwargs):
+        # Ignore unsupported parameters like input_axes
+        kwargs.pop("input_axes", None)
+        super().__init__(seed=seed)
+
 MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")
 
 try:
-    # This line works once 'import keras' is added above!
-    model = keras.models.load_model(MODEL_PATH, compile=False)
+    # Load model with custom initializers
+    model = keras.models.load_model(
+        MODEL_PATH, 
+        compile=False,
+        custom_objects={"GlorotUniform": SafeGlorotUniform}
+    )
     print(f"Loaded model successfully from {MODEL_PATH}")
 except Exception as e:
     model = None
