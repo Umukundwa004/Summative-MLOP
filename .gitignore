@@ -1,11 +1,16 @@
-# Ignore model files and raw dataset
+# ------------------------------------------------------------------------------
+# Data & Models (Preserve folder structure via .gitkeep)
+# ------------------------------------------------------------------------------
+data/*
+!data/*/.gitkeep
+!data/**/*.gitkeep
+
 models/*
 !models/.gitkeep
 
-data/*
-!data/.gitkeep
-
-# Ignore virtual environments
+# ------------------------------------------------------------------------------
+# Virtual Environment & Secrets
+# ------------------------------------------------------------------------------
 .venv/
 venv/
 __pycache__/
