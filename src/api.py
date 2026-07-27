@@ -1,7 +1,11 @@
 import os
+import io
+import numpy as np
+from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import tensorflow as tf
 
 try:
     from dotenv import load_dotenv
@@ -14,33 +18,74 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 1. Health check endpoint
+# ---------------------------------------------------------
+# Load Trained Model & Define Class Names
+# ---------------------------------------------------------
+MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")  # Update filename if yours is different (.h5)
+CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]   # Adjust order to match your training set
+
+try:
+    model = tf.keras.models.load_model(MODEL_PATH)
+    print(f"Loaded model from {MODEL_PATH}")
+except Exception as e:
+    model = None
+    print(f"Warning: Could not load model from {MODEL_PATH}: {e}")
+
+# Helper function to preprocess incoming MRI images
+def preprocess_image(image_bytes: bytes, target_size=(224, 224)) -> np.ndarray:
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image = image.resize(target_size)
+    img_array = np.array(image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
+    img_array = np.expand_dims(img_array, axis=0)          # Add batch dimension -> (1, 224, 224, 3)
+    return img_array
+
+# ---------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------
 @app.get("/health")
 def health_check():
-    return {"status": "Online"}
+    status = "Online" if model is not None else "Online (Model Not Loaded)"
+    return {"status": status}
 
-# 2. Prediction endpoint
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image.")
     
-    return {
-        "filename": file.filename,
-        "prediction": "glioma",
-        "confidence": 98.5
-    }
+    if model is None:
+        raise HTTPException(status_code=500, detail="Model file is not loaded on server.")
 
-# 3. Retrain trigger endpoint
+    try:
+        # Read uploaded image bytes
+        contents = await file.read()
+        
+        # Preprocess image (adjust target_size to match training input size, e.g., 224 or 150)
+        img_array = preprocess_image(contents, target_size=(224, 224))
+        
+        # Run inference
+        preds = model.predict(img_array)[0]
+        
+        # Find highest confidence class
+        top_idx = int(np.argmax(preds))
+        prediction_label = CLASS_NAMES[top_idx]
+        confidence = float(np.max(preds) * 100)
+
+        return {
+            "filename": file.filename,
+            "prediction": prediction_label,
+            "confidence": round(confidence, 2)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
+
 @app.post("/retrain")
 def retrain():
     return {"message": "Retraining pipeline initiated successfully."}
 
-# 4. Mount static files (serves app.js, css) from the frontend directory
+# Mount static files (frontend)
 if os.path.exists("frontend"):
     app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
-# 5. Root route serving index.html
 @app.get("/")
 def read_root():
     index_path = os.path.join("frontend", "index.html")

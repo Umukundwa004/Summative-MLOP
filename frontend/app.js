@@ -1,4 +1,4 @@
-//Frontend JavaScript for Brain Tumor Classification App
+// Frontend JavaScript for Brain Tumor Classification App
 const API = ""; 
 
 async function checkHealth() {
@@ -63,5 +63,5 @@ async function triggerRetrain() {
   }
 }
 
-// Initial check
+// Initial check on load
 checkHealth();
