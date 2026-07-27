@@ -14,9 +14,9 @@ An end-to-end Machine Learning Operations (MLOps) application for classifying br
 - **Deployment**: Docker, Hugging Face Spaces / Render
 
 ---
-youtube link:
-brain tumor detection app:https://brain-tumor-detection-app-rl9i.onrender.com/
-brain tumor locust testing:https://brain-tumor-locust-testing.onrender.com/
+-youtube link:
+-brain tumor detection app:https://brain-tumor-detection-app-rl9i.onrender.com/
+-brain tumor locust testing:https://brain-tumor-locust-testing.onrender.com/
 
 ## 📁 Project Directory Structure
 
