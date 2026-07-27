@@ -21,22 +21,22 @@ app = FastAPI(
 # ---------------------------------------------------------
 # Load Trained Model & Define Class Names
 # ---------------------------------------------------------
-MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")  # Update filename if yours is different (.h5)
-CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]   # Adjust order to match your training set
+MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")  # Update filename if using .h5
+CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]   # Adjust order if different in training
 
 try:
     model = tf.keras.models.load_model(MODEL_PATH)
-    print(f"Loaded model from {MODEL_PATH}")
+    print(f"Loaded model successfully from {MODEL_PATH}")
 except Exception as e:
     model = None
     print(f"Warning: Could not load model from {MODEL_PATH}: {e}")
 
 # Helper function to preprocess incoming MRI images
-def preprocess_image(image_bytes: bytes, target_size=(224, 224)) -> np.ndarray:
+def preprocess_image(image_bytes: bytes, target_size=(150, 150)) -> np.ndarray:
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     image = image.resize(target_size)
     img_array = np.array(image, dtype=np.float32) / 255.0  # Normalize to [0, 1]
-    img_array = np.expand_dims(img_array, axis=0)          # Add batch dimension -> (1, 224, 224, 3)
+    img_array = np.expand_dims(img_array, axis=0)          # Add batch dimension -> (1, 150, 150, 3)
     return img_array
 
 # ---------------------------------------------------------
@@ -59,8 +59,8 @@ async def predict(file: UploadFile = File(...)):
         # Read uploaded image bytes
         contents = await file.read()
         
-        # Preprocess image (adjust target_size to match training input size, e.g., 224 or 150)
-        img_array = preprocess_image(contents, target_size=(224, 224))
+        # Preprocess image with target size 150x150 to match model weights
+        img_array = preprocess_image(contents, target_size=(150, 150))
         
         # Run inference
         preds = model.predict(img_array)[0]
