@@ -43,54 +43,67 @@ Git
 2. Clone Repository & Setup Virtual Environment
 On Windows (PowerShell):
 PowerShell
+```bash
 # Clone repository
 git clone <your-repository-url>
 cd Summative-MLOP
+```
 
 # Create and activate virtual environment
+```bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+```
 On macOS / Linux:
-Bash
+```Bash
 git clone <your-repository-url>
 cd Summative-MLOP
 
 python3 -m venv .venv
+```
 source .venv/bin/activate
 3. Install Dependencies
-Bash
+```Bash
 pip install --upgrade pip
 pip install -r requirements.txt
+```
 If requirements.txt is missing or needs updating:
 
-Bash
+```Bash
 pip install fastapi uvicorn tensorflow opencv-python numpy pillow python-dotenv locust pytest
 pip freeze > requirements.txt
+```
 4. Configuration (.env Setup)
 Create a local .env file by copying .env.example:
 
-Bash
+```Bash
 cp .env.example .env
+```
 Verify your .env settings:
 
 Code snippet
+```
 # Server Configuration
 HOST=127.0.0.1
 PORT=8000
 DEBUG=True
+```
 
 # Model Paths & Configurations
+```
 MODEL_PATH=models/tumor_model.keras
 TARGET_IMAGE_SIZE=150
 Ensure your trained Keras model is located inside the models/ directory matching MODEL_PATH:
-
+```
 Plaintext
+```
 models/tumor_model.keras
 5. Running the API Locally
 Start the server using Uvicorn:
-
-Bash
+```
+```Bash
 python -m uvicorn src.api:app --reload --port 8000
+```
 Once running, access the local endpoints:
 
 Interactive API Documentation (Swagger UI): http://127.0.0.1:8000/docs
@@ -130,7 +143,9 @@ class BrainTumorAPIUser(HttpUser):
 While the FastAPI backend is running, open a second terminal and run:
 
 PowerShell
+```
 python -m locust -f locustfile.py
+```
 Open your browser to http://localhost:8089.
 
 Set Number of users: 10
@@ -146,8 +161,8 @@ Option A: Docker Deployment
 Create a Dockerfile in the project root:
 
 Dockerfile
+```
 FROM python:3.11-slim
-
 # Install OpenCV system dependencies
 RUN apt-get update && apt-get install -y \
     libgl1 \
@@ -164,27 +179,36 @@ COPY . .
 EXPOSE 8000
 
 CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+```
 Build and run the Docker container:
 
 Bash
 # Build image
+```
 docker build -t brain-tumor-api .
-
+```
 # Run container
+```
 docker run -d -p 8000:8000 --name tumor-api-container brain-tumor-api
+```
 Option B: Hugging Face Spaces / Render Deployment
 Create a Space: Navigate to Hugging Face Spaces and create a new Space with the Docker SDK.
 
 Update the EXPOSE and CMD port in your Dockerfile to 7860 (Hugging Face's default port):
 
 Dockerfile
+```
 EXPOSE 7860
 CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "7860"]
+```
+
 Push the repository to Hugging Face Spaces.
 
 Access the live production API and Swagger documentation at:
+```
 https://<your-space-name>.hf.space/docs
 
+```
 🧪 Section 4: Testing API Endpoints
 1. Using Swagger UI (/docs)
 Navigate to http://127.0.0.1:8000/docs.
@@ -194,7 +218,7 @@ Select POST /predict and click Try it out.
 Upload an MRI image (.jpg or .png) and click Execute.
 
 2. Using curl
-Bash
+```Bash
 curl -X 'POST' \
   '[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)' \
   -H 'accept: application/json' \
