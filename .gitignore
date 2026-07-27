@@ -1,16 +1,12 @@
-# ------------------------------------------------------------------------------
-# Data & Models (Preserve folder structure via .gitkeep)
-# ------------------------------------------------------------------------------
-data/*
-!data/*/.gitkeep
-!data/**/*.gitkeep
-
+# Ignore model weights and dataset images
 models/*
 !models/.gitkeep
 
-# ------------------------------------------------------------------------------
-# Virtual Environment & Secrets
-# ------------------------------------------------------------------------------
+data/*
+!data/train/.gitkeep
+!data/test/.gitkeep
+
+# Ignore virtualenv & secrets
 .venv/
 venv/
 __pycache__/
