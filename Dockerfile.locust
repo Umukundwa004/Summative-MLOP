@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install locust and pillow for generating dummy test images if needed
+RUN pip install --no-cache-dir locust requests pillow
+
+# Copy python scripts and project configuration
+COPY locustfile.py .
+COPY . .
+
+# Expose Locust UI port
+EXPOSE 8089
+
+CMD ["locust", "-f", "locustfile.py", "--web-host", "0.0.0.0", "--web-port", "8089"]

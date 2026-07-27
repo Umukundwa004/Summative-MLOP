@@ -1,0 +1,12 @@
+.git
+.venv
+venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+data/*
+!data/train/.gitkeep
+!data/test/.gitkeep
+models/*
+!models/.gitkeep

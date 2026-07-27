@@ -1,28 +1,24 @@
-from locust import HttpUser, task, between
 import os
+import io
+from locust import HttpUser, task, between
+from PIL import Image
 
-# Path to a sample MRI test image
-TEST_IMAGE_PATH = os.path.join("data", "test", "sample.jpg")  # Adjust path to any valid image file in your repo
-
-class BrainTumorAPIUser(HttpUser):
-    # Wait between 1 and 3 seconds between tasks per simulated user
+class BrainTumorUser(HttpUser):
     wait_time = between(1, 3)
 
-    @task(1)
-    def test_health(self):
-        """Tests the lightweight GET /health endpoint."""
-        self.client.get("/health")
+    def on_start(self):
+        """Prepare sample image payload in memory"""
+        # Create a simple 224x224 RGB dummy image in memory if no file exists
+        img = Image.new('RGB', (224, 224), color=(73, 109, 137))
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='JPEG')
+        self.sample_image = img_byte_arr.getvalue()
 
     @task(3)
-    def test_predict(self):
-        """Tests the POST /predict endpoint with an image upload."""
-        if not os.path.exists(TEST_IMAGE_PATH):
-            print(f"Warning: Test image not found at {TEST_IMAGE_PATH}")
-            return
+    def test_health(self):
+        self.client.get("/health")
 
-        with open(TEST_IMAGE_PATH, "rb") as image_file:
-            files = {
-                "file": ("sample.jpg", image_file, "image/jpeg")
-            }
-            # Sends multipart/form-data request
-            self.client.post("/predict", files=files)
+    @task(7)
+    def test_predict(self):
+        files = {'file': ('test.jpg', self.sample_image, 'image/jpeg')}
+        self.client.post("/predict", files=files)

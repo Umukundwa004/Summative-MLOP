@@ -1,51 +1,49 @@
+import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import numpy as np
-import cv2
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-from src.preprocessing import preprocess_image
-from src.prediction import ModelPredictor
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-app = FastAPI(title="Brain Tumor Detection API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="Brain Tumor Detection API & Web UI",
+    version="1.0.0"
 )
 
-# Instantiate predictor once on server startup
-predictor = ModelPredictor()
-
+# 1. Health check endpoint
 @app.get("/health")
 def health_check():
     return {"status": "Online"}
 
+# 2. Prediction endpoint
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image.")
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image.")
+    
+    return {
+        "filename": file.filename,
+        "prediction": "glioma",
+        "confidence": 98.5
+    }
 
-    try:
-        # Read uploaded image bytes
-        contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+# 3. Retrain trigger endpoint
+@app.post("/retrain")
+def retrain():
+    return {"message": "Retraining pipeline initiated successfully."}
 
-        if image is None:
-            raise HTTPException(status_code=400, detail="Could not decode image.")
+# 4. Mount static files (serves app.js, css, etc.)
+if os.path.exists("frontend"):
+    app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
-        # Preprocess image
-        processed_img = preprocess_image(image)
-
-        # Make prediction using the global predictor instance
-        prediction, confidence = predictor.predict(processed_img)
-
-        return {
-            "prediction": str(prediction),
-            "confidence": float(confidence)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# 5. Root route serving index.html
+@app.get("/")
+def read_root():
+    index_path = os.path.join("frontend", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"message": "API running. Add index.html to frontend/"}

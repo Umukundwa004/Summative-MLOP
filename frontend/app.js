@@ -1,4 +1,5 @@
-const API = "http://localhost:8000";
+// Change this line at the top of app.js:
+const API = ""; 
 
 async function checkHealth() {
   const statusElem = document.getElementById("modelStatus");
@@ -6,7 +7,7 @@ async function checkHealth() {
     const res = await fetch(`${API}/health`);
     const data = await res.json();
     statusElem.textContent = data.status;
-    statusElem.className = data.status.includes("Online") 
+    statusElem.className = data.status.toLowerCase().includes("healthy") || data.status.toLowerCase().includes("online")
       ? "px-3 py-1 rounded-full text-sm font-semibold bg-emerald-500 text-slate-900" 
       : "px-3 py-1 rounded-full text-sm font-semibold bg-rose-500 text-white";
   } catch (err) {
@@ -56,7 +57,7 @@ async function triggerRetrain() {
   try {
     const res = await fetch(`${API}/retrain`, { method: "POST" });
     const data = await res.json();
-    status.textContent = data.message;
+    status.textContent = data.message || "Retraining triggered.";
   } catch (err) {
     status.textContent = "Failed to trigger retraining.";
   }

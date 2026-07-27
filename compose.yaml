@@ -1,22 +1,23 @@
-version: "3.9"
-
 services:
-  backend:
-    build: .
-    container_name: brain-api
+  app-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8000:7860"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=7860
     volumes:
       - ./models:/app/models
-      - ./data:/app/data
-    environment:
-      - MODEL_PATH=models/brain_tumor_model.keras
 
-  frontend:
+  locust-service:
     build:
-      context: ./frontend
-    container_name: brain-dashboard
+      context: .
+      dockerfile: Dockerfile.locust
     ports:
-      - "8080:80"
+      - "8089:8089"
     depends_on:
-      - backend
+      - app-service
+    environment:
+      - LOCUST_HOST=http://app-service:7860
