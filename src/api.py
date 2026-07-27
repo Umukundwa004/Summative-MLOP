@@ -8,6 +8,26 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import tensorflow as tf
 
+# Patch GlorotUniform initializer to prevent deserialization errors due to version mismatches.
+classes_to_patch = set()
+for lib in (keras, tf.keras):
+    try:
+        classes_to_patch.add(lib.initializers.GlorotUniform)
+    except AttributeError:
+        pass
+
+for cls in classes_to_patch:
+    orig_init = cls.__init__
+    if not hasattr(orig_init, "_is_patched"):
+        def make_patched_init(old_init):
+            def patched_init(self, *args, **kwargs):
+                kwargs.pop("input_axes", None)
+                kwargs.pop("output_axes", None)
+                return old_init(self, *args, **kwargs)
+            patched_init._is_patched = True
+            return patched_init
+        cls.__init__ = make_patched_init(orig_init)
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -18,26 +38,16 @@ app = FastAPI(
     title="Brain Tumor Detection API & Web UI",
     version="1.0.0"
 )
-app = FastAPI(title="Brain Tumor Detection API")
+
 # ---------------------------------------------------------
 # Load Trained Model & Define Class Names
-# ---------------------------------------------------------  # Update filename if using .h5
-@keras.saving.register_keras_serializable()
-class SafeGlorotUniform(keras.initializers.GlorotUniform):
-    def __init__(self, seed=None, **kwargs):
-        # Ignore unsupported parameters like input_axes
-        kwargs.pop("input_axes", None)
-        super().__init__(seed=seed)
-
+# ---------------------------------------------------------
+CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
 MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")
 
 try:
-    # Load model with custom initializers
-    model = keras.models.load_model(
-        MODEL_PATH, 
-        compile=False,
-        custom_objects={"GlorotUniform": SafeGlorotUniform}
-    )
+    # Load model after applying monkeypatch
+    model = keras.models.load_model(MODEL_PATH, compile=False)
     print(f"Loaded model successfully from {MODEL_PATH}")
 except Exception as e:
     model = None
