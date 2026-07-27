@@ -1,6 +1,7 @@
 import os
 import io
 import numpy as np
+import keras
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
