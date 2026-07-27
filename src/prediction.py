@@ -1,6 +1,27 @@
 import os
 import numpy as np
 import tensorflow as tf
+import keras
+
+# Patch GlorotUniform initializer to prevent deserialization errors due to version mismatches.
+classes_to_patch = set()
+for lib in (keras, tf.keras):
+    try:
+        classes_to_patch.add(lib.initializers.GlorotUniform)
+    except AttributeError:
+        pass
+
+for cls in classes_to_patch:
+    orig_init = cls.__init__
+    if not hasattr(orig_init, "_is_patched"):
+        def make_patched_init(old_init):
+            def patched_init(self, *args, **kwargs):
+                kwargs.pop("input_axes", None)
+                kwargs.pop("output_axes", None)
+                return old_init(self, *args, **kwargs)
+            patched_init._is_patched = True
+            return patched_init
+        cls.__init__ = make_patched_init(orig_init)
 
 CLASSES = ['glioma', 'meningioma', 'notumor', 'pituitary']
 
