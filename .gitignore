@@ -1,0 +1,13 @@
+# Ignore model files and raw dataset
+models/*
+!models/.gitkeep
+
+data/*
+!data/.gitkeep
+
+# Ignore virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env

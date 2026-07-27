@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    container_name: brain-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    environment:
+      - MODEL_PATH=models/brain_tumor_model.keras
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: brain-dashboard
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

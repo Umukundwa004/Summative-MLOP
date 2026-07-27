@@ -1,0 +1,11 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
+tensorflow>=2.20.0
+python-multipart
+pillow
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+locust
