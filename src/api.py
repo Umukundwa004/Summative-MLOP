@@ -23,14 +23,13 @@ app = FastAPI(
 # ---------------------------------------------------------
 MODEL_PATH = os.path.join("models", "brain_tumor_model.keras")  # Update filename if using .h5
 CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]   # Adjust order if different in training
-
 try:
-    model = tf.keras.models.load_model(MODEL_PATH)
+    # Load using keras directly
+    model = keras.models.load_model(MODEL_PATH, compile=False)
     print(f"Loaded model successfully from {MODEL_PATH}")
 except Exception as e:
     model = None
     print(f"Warning: Could not load model from {MODEL_PATH}: {e}")
-
 # Helper function to preprocess incoming MRI images
 def preprocess_image(image_bytes: bytes, target_size=(150, 150)) -> np.ndarray:
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
