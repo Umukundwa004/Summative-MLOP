@@ -1,10 +1,11 @@
-# Ignore model weights and dataset images
-models/*
-!models/.gitkeep
-
+# Ignore dataset images
 data/*
 !data/train/.gitkeep
 !data/test/.gitkeep
+
+# Keep models folder and model files tracked
+!models/*.keras
+!models/*.h5
 
 # Ignore virtualenv & secrets
 .venv/
