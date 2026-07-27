@@ -62,7 +62,7 @@ class BrainTumorModel:
             loss='categorical_crossentropy',
             metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='recall')]
         )
-        print("✅ Model compiled successfully.")
+        print(" Model compiled successfully.")
 
     def get_data_generators(self, train_dir, test_dir):
         """Prepares train and test ImageDataGenerators with rescaling and light augmentation."""
@@ -137,8 +137,8 @@ def resolve_data_paths():
 if __name__ == "__main__":
     # 1. Resolve dataset paths dynamically
     train_path, test_path = resolve_data_paths()
-    print(f"📂 Training Data Path: {train_path}")
-    print(f"📂 Testing Data Path:  {test_path}\n")
+    print(f" Training Data Path: {train_path}")
+    print(f" Testing Data Path:  {test_path}\n")
 
     # 2. Instantiate and build model pipeline
     classifier = BrainTumorModel(img_size=(224, 224), batch_size=32, num_classes=4)

@@ -36,7 +36,7 @@ async def predict(file: UploadFile = File(...)):
 def retrain():
     return {"message": "Retraining pipeline initiated successfully."}
 
-# 4. Mount static files (serves app.js, css, etc.)
+# 4. Mount static files (serves app.js, css) from the frontend directory
 if os.path.exists("frontend"):
     app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 

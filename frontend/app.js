@@ -1,4 +1,4 @@
-// Change this line at the top of app.js:
+//Frontend JavaScript for Brain Tumor Classification App
 const API = ""; 
 
 async function checkHealth() {
