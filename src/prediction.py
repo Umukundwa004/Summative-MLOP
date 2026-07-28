@@ -3,106 +3,96 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 
-# Define standard brain tumor class labels matching dataset alphabetical/folder order
-CLASS_NAMES = ["Glioma Tumor", "Meningioma Tumor", "No Tumor", "Pituitary Tumor"]
+# Define standard default target dimensions for fallback
+DEFAULT_TARGET_SIZE = (128, 128)
 
-# Path to the trained model file
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "brain_tumor_model.keras")
-
-# Global model cache to avoid re-reading from disk on every prediction
-_MODEL = None
-
-
-def load_model():
+def load_model(model_path="models/model.h5"):
     """
-    Loads and caches the trained Keras model.
-    Checks for .keras first, then falls back to .h5 if necessary.
+    Loads and caches the trained Keras model from disk.
     """
-    global _MODEL
-    if _MODEL is None:
-        if os.path.exists(MODEL_PATH):
-            _MODEL = tf.keras.models.load_model(MODEL_PATH)
-        else:
-            alt_path = os.path.join(os.path.dirname(__file__), "..", "models", "brain_tumor_model.h5")
-            if os.path.exists(alt_path):
-                _MODEL = tf.keras.models.load_model(alt_path)
-            else:
-                raise FileNotFoundError(f"Model file not found at {MODEL_PATH} or {alt_path}")
-    return _MODEL
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at path: {model_path}")
+    
+    model = tf.keras.models.load_model(model_path)
+    return model
 
 
-def get_model_target_size():
+def get_model_target_size(model=None):
     """
-    Dynamically inspects the loaded model's input shape to avoid dimension mismatch errors.
-    Defaults to (128, 128) if unassigned.
+    Extracts the required image input height and width (H, W) from the loaded model.
+    Falls back to DEFAULT_TARGET_SIZE if model is missing or shape is indeterminate.
     """
-    model = load_model()
+    if model is None:
+        return DEFAULT_TARGET_SIZE
+
     try:
-        # Extract height and width from model input shape tuple: (None, height, width, channels)
+        # Handles standard Keras models with input_shape attribute
         input_shape = model.input_shape
+        
+        # If input_shape is a list (e.g. multi-input models), take the first input
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
-        
-        height = input_shape[1] if input_shape[1] is not None else 128
-        width = input_shape[2] if input_shape[2] is not None else 128
-        return (height, width)
+
+        # Expecting shape like (None, height, width, channels)
+        if input_shape and len(input_shape) >= 3:
+            height = input_shape[1]
+            width = input_shape[2]
+            if height is not None and width is not None:
+                return (int(height), int(width))
     except Exception:
-        return (128, 128)
+        pass
+
+    return DEFAULT_TARGET_SIZE
 
 
-def preprocess_image(image: Image.Image):
+def preprocess_image(image: Image.Image, target_size: tuple) -> np.ndarray:
     """
-    Preprocesses the raw uploaded image into a normalized 4D tensor ready for TensorFlow prediction.
+    Preprocesses an uploaded PIL image for model inference.
+    Resizes image, converts to array, scales pixel values to [0, 1], and adds batch dimension.
     """
-    target_size = get_model_target_size()
-    
-    # Ensure RGB format (converts RGBA or Grayscale scans to 3 channels)
+    # Ensure RGB channel format
     if image.mode != "RGB":
         image = image.convert("RGB")
-        
-    # Resize to the model's required input dimensions
+    
+    # Resize to target dimension (Width, Height) expected by PIL
     image = image.resize(target_size)
     
-    # Convert PIL Image to numpy array and normalize pixels to [0, 1] range
+    # Convert PIL Image to numpy array and normalize pixels to [0, 1]
     img_array = np.array(image, dtype=np.float32) / 255.0
     
-    # Add batch dimension: (1, height, width, 3)
-    img_array = np.expand_dims(img_array, axis=0)
+    # Expand dims to create batch dimension (1, height, width, channels)
+    img_batch = np.expand_dim(img_array, axis=0)
     
-    return img_array
+    return img_batch
 
 
-def predict_image(image: Image.Image):
+def predict(model, image: Image.Image, class_names: list = None):
     """
-    Executes model inference on an uploaded image.
-    
-    Returns:
-        tuple: (predicted_class_name, confidence_percentage, probabilities_dictionary)
+    Executes prediction on a single PIL image using the loaded Keras model.
     """
-    model = load_model()
-    processed_tensor = preprocess_image(image)
+    target_size = get_model_target_size(model)
+    processed_image = preprocess_image(image, target_size)
     
-    # Run prediction
-    raw_predictions = model.predict(processed_tensor, verbose=0)[0]
+    # Perform forward pass prediction
+    predictions = model.predict(processed_image)
     
-    # Identify top prediction index
-    top_index = int(np.argmax(raw_predictions))
-    predicted_class = CLASS_NAMES[top_index]
-    confidence = float(raw_predictions[top_index])
-    
-    # Construct probability map across all target classes
-    probabilities = {CLASS_NAMES[i]: float(raw_predictions[i]) for i in range(len(CLASS_NAMES))}
-    
-    return predicted_class, confidence, probabilities
+    # Multi-class vs Binary classification processing
+    if predictions.shape[-1] > 1:
+        probs = tf.nn.softmax(predictions[0]).numpy() if not np.isclose(np.sum(predictions[0]), 1.0) else predictions[0]
+        class_idx = int(np.argmax(probs))
+        confidence = float(probs[class_idx])
+    else:
+        # Single output sigmoid output
+        confidence = float(predictions[0][0])
+        class_idx = 1 if confidence >= 0.5 else 0
+        if class_idx == 0:
+            confidence = 1.0 - confidence
 
-def get_model_target_size(model):
-    """
-    Extracts the target input image dimensions (height, width) expected by the model.
-    """
-    input_shape = model.input_shape
-    # input_shape is typically (None, height, width, channels)
-    if len(input_shape) >= 3 and input_shape[1] is not None and input_shape[2] is not None:
-        return (input_shape[1], input_shape[2])
-    
-    # Fallback default target size if input_shape is dynamic
-    return (128, 128)
+    predicted_label = class_names[class_idx] if class_names and class_idx < len(class_names) else str(class_idx)
+
+    return {
+        "class_index": class_idx,
+        "label": predicted_label,
+        "confidence": confidence,
+        "raw_predictions": predictions.tolist()
+    }

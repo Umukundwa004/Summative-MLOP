@@ -56,7 +56,7 @@ if page == "Single Prediction":
             st.image(image, caption=f"Uploaded Scan: {uploaded_file.name}", use_column_width=True)
             
             # Display tensor format info
-            target_dim = get_model_target_size()
+            target_dim = get_model_target_size(loaded_model)
             st.info(f"Input Shape Formatted to: `{target_dim[0]}x{target_dim[1]} RGB`")
 
     with col2:
