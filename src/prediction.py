@@ -1,45 +1,49 @@
 import os
 import numpy as np
 from PIL import Image
+import keras
 import tensorflow as tf
 
-# Default fallback target size (Height, Width)
-DEFAULT_TARGET_SIZE = (128, 128)
+# Default fallback input dimension (Height, Width)
+DEFAULT_TARGET_SIZE = (150, 150)
 
-# Class labels for Brain Tumor Classification
+# Brain Tumor Diagnostic Classes
 CLASS_NAMES = ["Glioma Tumor", "Meningioma Tumor", "No Tumor", "Pituitary Tumor"]
 
 
 def load_model(model_path=None):
     """
-    Loads and returns the trained Keras model from disk.
-    Automatically checks standard `.keras` and `.h5` locations.
+    Loads and returns the trained Keras 3 model from disk.
     """
     candidate_paths = [
         model_path,
-        "models/model.keras",
         "models/brain_tumor_model.keras",
-        "model/model.keras",
+        "models/model.keras",
+        "models/model.h5",
+        "models/brain_tumor_model.h5",
         "model.keras",
-        "models/model.h5"
+        "model.h5"
     ]
     
-    # Filter out None values
     valid_candidates = [p for p in candidate_paths if p is not None]
     
     for path in valid_candidates:
         if os.path.exists(path):
-            return tf.keras.models.load_model(path)
+            try:
+                # Use keras directly for Keras 3 formats
+                return keras.models.load_model(path, compile=False)
+            except Exception:
+                # Fallback to tf.keras
+                return tf.keras.models.load_model(path, compile=False)
             
     raise FileNotFoundError(
-        f"Model file not found. Checked locations: {valid_candidates}. "
-        "Please ensure your .keras file is committed to GitHub inside the models/ directory."
+        f"Model file not found or could not be loaded. Checked paths: {valid_candidates}."
     )
 
 
 def get_model_target_size(model=None):
     """
-    Extracts the image input height and width (H, W) expected by the Keras model.
+    Dynamically extracts input spatial dimensions (Height, Width) from the model.
     """
     if model is None:
         return DEFAULT_TARGET_SIZE
@@ -61,25 +65,24 @@ def get_model_target_size(model=None):
 
 def preprocess_image(image: Image.Image, target_size: tuple) -> np.ndarray:
     """
-    Preprocesses a PIL Image for Keras model prediction.
+    Preprocesses a PIL Image for model evaluation.
     """
     if image.mode != "RGB":
         image = image.convert("RGB")
     
-    # Resize image (Width, Height) for PIL
+    # PIL resize expects (width, height)
     image = image.resize((target_size[1], target_size[0]))
     
-    # Scale pixels to [0, 1]
+    # Convert image to float32 numpy array and normalize
     img_array = np.array(image, dtype=np.float32) / 255.0
     
-    # Add batch dimension (1, height, width, channels)
+    # Add batch dimension: (1, height, width, channels)
     return np.expand_dims(img_array, axis=0)
 
 
 def predict_image(image: Image.Image, model=None, class_names=None):
     """
-    Performs inference on a single PIL image and returns predictions, confidence,
-    and a formatted class probability dictionary for Streamlit UI rendering.
+    Runs model inference on a single PIL image.
     """
     if class_names is None:
         class_names = CLASS_NAMES
@@ -93,19 +96,17 @@ def predict_image(image: Image.Image, model=None, class_names=None):
     # Perform forward pass
     raw_preds = model.predict(processed_image)
 
-    # Multi-class output (Softmax / Multi-logit)
+    # Multi-class output processing
     if raw_preds.shape[-1] > 1:
         probs = tf.nn.softmax(raw_preds[0]).numpy() if not np.isclose(np.sum(raw_preds[0]), 1.0) else raw_preds[0]
         class_idx = int(np.argmax(probs))
         confidence = float(probs[class_idx])
         
-        # Format class probabilities dictionary
         prob_dict = {
             class_names[i] if i < len(class_names) else f"Class {i}": float(probs[i])
             for i in range(len(probs))
         }
     else:
-        # Binary classification fallback
         confidence = float(raw_preds[0][0])
         class_idx = 1 if confidence >= 0.5 else 0
         if class_idx == 0:
@@ -118,7 +119,6 @@ def predict_image(image: Image.Image, model=None, class_names=None):
 
     predicted_label = class_names[class_idx] if class_idx < len(class_names) else str(class_idx)
 
-    # Return structured dictionary compatible with app.py
     return {
         "label": predicted_label,
         "confidence": confidence,
