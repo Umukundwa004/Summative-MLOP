@@ -40,14 +40,14 @@ Summative-MLOP/
 ⚙️ Section 1: Local Development & Setup
 1. Prerequisites
 Python: Version 3.10+ (Python 3.11 recommended)
-
+```
 Git
 
 2. Clone Repository & Setup Virtual Environment
 On Windows (PowerShell):
 PowerShell
-```bash
 # Clone repository
+```
 git clone <your-repository-url>
 cd Summative-MLOP
 ```
@@ -58,7 +58,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 On macOS / Linux:
-```Bash
+```
 git clone <your-repository-url>
 cd Summative-MLOP
 
@@ -69,12 +69,6 @@ source .venv/bin/activate
 ```Bash
 pip install --upgrade pip
 pip install -r requirements.txt
-```
-If requirements.txt is missing or needs updating:
-
-```Bash
-pip install fastapi uvicorn tensorflow opencv-python numpy pillow python-dotenv locust pytest
-pip freeze > requirements.txt
 ```
 4. Configuration (.env Setup)
 Create a local .env file by copying .env.example:
@@ -107,7 +101,7 @@ models/tumor_model.keras
 python -m streamlit run app.py
 ```
  Section 4: Testing API Endpoints
-1. Using Swagger UI (/docs)locally 
+1. Using Swagger UI (/docs)locally
 Navigate to http://127.0.0.1:8000/docs.
 
 Select POST /predict and click Try it out.
@@ -129,28 +123,4 @@ JSON
   "prediction": "glioma",
   "confidence": 98.5
 }
-```
-🛡️ Section 5: Version Control (.gitignore)
-Ensure your .gitignore contains the following rules to prevent committing virtual environments, large model binary files, and environment secrets:
-
-```
-# Environment Variables & Secrets
-.env
-*.env
-
-# Python & Virtual Environments
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-
-# Large Model Weights & Datasets
-models/*.keras
-data/raw/
-
-# Testing & Logs
-.pytest_cache/
-
-# IDE & OS Files
-.vscode/
 ```
