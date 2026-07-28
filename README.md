@@ -102,118 +102,12 @@ Plaintext
 ```
 models/tumor_model.keras
 5. Running the API Locally
-Start the server using Uvicorn:
+#Launch the Streamlit App
 ```
-```Bash
-python -m uvicorn src.api:app --reload --port 8000
+python -m streamlit run app.py
 ```
-Once running, access the local endpoints:
-
-Interactive API Documentation (Swagger UI): http://127.0.0.1:8000/docs
-
-Alternative Documentation (ReDoc): http://127.0.0.1:8000/redoc
-
-Health Check Endpoint: http://127.0.0.1:8000/health
-
-🚀 Section 2: Load Testing with Locust
-Locust is integrated to benchmark API throughput and response times under simulated concurrent traffic.
-
-1. Prepare locustfile.py
-Ensure locustfile.py is present in the project root:
-
-Python
-import os
-from locust import HttpUser, task, between
-
-TEST_IMAGE_PATH = os.path.join("data", "test", "sample.jpg")
-
-class BrainTumorAPIUser(HttpUser):
-    wait_time = between(1.5, 4.0)
-
-    @task(5)
-    def test_health(self):
-        self.client.get("/health", name="/health [Health Check]")
-
-    @task(3)
-    def test_predict(self):
-        if not os.path.exists(TEST_IMAGE_PATH):
-            return
-
-        with open(TEST_IMAGE_PATH, "rb") as image_file:
-            files = {"file": ("sample.jpg", image_file, "image/jpeg")}
-            self.client.post("/predict", files=files, name="/predict [MRI Classification]")
-2. Execute Load Tests
-While the FastAPI backend is running, open a second terminal and run:
-
-PowerShell
-```
-python -m locust -f locustfile.py
-```
-Open your browser to http://localhost:8089.
-
-Set Number of users: 10
-
-Set Ramp-up rate: 2
-
-Set Host: http://127.0.0.1:8000
-
-Click Start swarming to view real-time latency and RPS charts.
-
-🌐 Section 3: Production Deployment Setup
-Option A: Docker Deployment
-Create a Dockerfile in the project root:
-
-Dockerfile
-```
-FROM python:3.11-slim
-# Install OpenCV system dependencies
-RUN apt-get update && apt-get install -y \
-    libgl1 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-Build and run the Docker container:
-
-Bash
-# Build image
-```
-docker build -t brain-tumor-api .
-```
-# Run container
-```
-docker run -d -p 8000:8000 --name tumor-api-container brain-tumor-api
-```
-Option B: Hugging Face Spaces / Render Deployment
-Create a Space: Navigate to Hugging Face Spaces and create a new Space with the Docker SDK.
-
-Update the EXPOSE and CMD port in your Dockerfile to 7860 (Hugging Face's default port):
-
-Dockerfile
-```
-EXPOSE 7860
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "7860"]
-```
-
-Push the repository to Hugging Face Spaces.
-
-Access the live production API and Swagger documentation at:
-```
-https://<your-space-name>.hf.space/docs
-
-```
-🧪 Section 4: Testing API Endpoints
-1. Using Swagger UI (/docs)
+ Section 4: Testing API Endpoints
+1. Using Swagger UI (/docs)locally 
 Navigate to http://127.0.0.1:8000/docs.
 
 Select POST /predict and click Try it out.
@@ -227,20 +121,22 @@ curl -X 'POST' \
   -H 'accept: application/json' \
   -H 'Content-Type: multipart/form-data' \
   -F 'file=@data/test/sample.jpg'
+```
 Expected Response
+```
 JSON
 {
   "prediction": "glioma",
   "confidence": 98.5
 }
+```
 🛡️ Section 5: Version Control (.gitignore)
 Ensure your .gitignore contains the following rules to prevent committing virtual environments, large model binary files, and environment secrets:
 
-Code snippet
+```
 # Environment Variables & Secrets
 .env
 *.env
-.env.local
 
 # Python & Virtual Environments
 __pycache__/
@@ -250,15 +146,11 @@ venv/
 
 # Large Model Weights & Datasets
 models/*.keras
-models/*.h5
 data/raw/
 
 # Testing & Logs
 .pytest_cache/
-.coverage
-locust_stats.csv
 
 # IDE & OS Files
-.DS_Store
 .vscode/
-.idea/
+```
