@@ -6,12 +6,11 @@ An end-to-end Machine Learning Operations (MLOps) application for classifying br
 ---
 
 ## 🛠️ Tech Stack & Requirements
-
-- **Framework**: FastAPI, Uvicorn
-- **ML / Computer Vision**: TensorFlow, Keras, OpenCV (`cv2`), NumPy, Pillow
+- **Framework**: Streamlit (Web Interface), FastAPI, Uvicorn (REST API Backend)
+- **ML / Computer Vision**: TensorFlow, Keras, NumPy, Pillow
 - **Testing & Benchmarking**: Locust, PyTest
 - **Configuration & Environment**: `python-dotenv`
-- **Deployment**: Docker, Hugging Face Spaces / Render
+- **Deployment**: Docker, Streamlit Community Cloud
 
 ---
 - youtube link:
