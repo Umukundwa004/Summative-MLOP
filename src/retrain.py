@@ -1,131 +1,157 @@
 import os
 import sqlite3
-import datetime
-from PIL import Image
 import numpy as np
+from PIL import Image
 import tensorflow as tf
+import keras
 
-# Paths
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "..", "data", "retrain_metadata.db")
-UPLOAD_DIR = os.path.join(BASE_DIR, "..", "data", "uploaded_for_retrain")
-MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "brain_tumor_model.keras")
+from src.prediction import load_model, get_model_target_size, CLASS_NAMES
 
-CLASS_NAMES = ["Glioma Tumor", "Meningioma Tumor", "No Tumor", "Pituitary Tumor"]
+# Database and directory paths
+DB_PATH = os.path.join("data", "retrain_metadata.db")
+UPLOAD_DIR = os.path.join("data", "uploads")
 
-# -----------------------------------------------------------------------------
-# TRIGGER 1: DATA FILE UPLOADING + SAVING TO DATABASE
-# -----------------------------------------------------------------------------
+
 def init_db():
-    """Create a database table to record incoming training files."""
+    """
+    Ensures the data directories and SQLite database table exist for storing new training records.
+    """
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS retrain_images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            filepath TEXT,
-            label TEXT,
-            uploaded_at TIMESTAMP
+            file_path TEXT NOT NULL,
+            label TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
     conn.commit()
     conn.close()
 
+
 def save_uploaded_image_and_metadata(uploaded_file, label: str):
-    """Saves the raw uploaded image file and logs its metadata to the SQLite database."""
+    """
+    Saves an uploaded Streamlit file to local disk and records its path and metadata in SQLite.
+    """
     init_db()
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
     
-    filename = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    
-    # Save file to disk
-    with open(filepath, "wb") as f:
+    file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
         
-    # Log metadata to database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO retrain_images (filename, filepath, label, uploaded_at) VALUES (?, ?, ?, ?)",
-        (filename, filepath, label, datetime.datetime.now())
+        "INSERT INTO retrain_images (file_path, label) VALUES (?, ?)",
+        (file_path, label)
     )
     conn.commit()
     conn.close()
-    print(f"[Trigger 1] Saved {filename} and logged entry in SQLite database.")
-    return filepath
 
-# -----------------------------------------------------------------------------
-# TRIGGER 2: DATA PREPROCESSING OF UPLOADED DATA
-# -----------------------------------------------------------------------------
-def preprocess_retrain_data(target_size=(224, 224)):
-    """Fetches uploaded image records from DB and preprocesses them into tensors."""
+
+def load_retrain_data(target_size: tuple):
+    """
+    Loads saved image records from SQLite, resizes images to the model's expected 
+    target_size (e.g. 150x150), and builds normalized numpy feature and target arrays.
+    """
     init_db()
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT filepath, label FROM retrain_images")
-    rows = cursor.fetchall()
+    cursor.execute("SELECT file_path, label FROM retrain_images")
+    records = cursor.fetchall()
     conn.close()
-    
-    if not rows:
-        print("[Trigger 2] No new data found in database for preprocessing.")
+
+    if not records:
         return None, None
-        
-    x_data, y_data = [], []
-    for filepath, label in rows:
-        if os.path.exists(filepath) and label in CLASS_NAMES:
-            img = Image.open(filepath).convert("RGB")
-            img = img.resize(target_size)
-            img_arr = np.array(img, dtype=np.float32) / 255.0  # Normalize pixel values
-            
-            x_data.append(img_arr)
-            y_data.append(CLASS_NAMES.index(label))
-            
-    if len(x_data) == 0:
+
+    images = []
+    labels = []
+
+    # Map label strings to integer indices matching CLASS_NAMES
+    label_to_idx = {name.lower(): idx for idx, name in enumerate(CLASS_NAMES)}
+
+    for file_path, label in records:
+        if os.path.exists(file_path):
+            try:
+                img = Image.open(file_path)
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                
+                # Resize image precisely to model target dimension (Width, Height)
+                img = img.resize((target_size[1], target_size[0]))
+                
+                # Normalize pixel intensities
+                img_array = np.array(img, dtype=np.float32) / 255.0
+                images.append(img_array)
+
+                # Match label string to index (defaulting to 0 if unmatched)
+                clean_label = label.strip().lower()
+                idx = label_to_idx.get(clean_label, 0)
+                labels.append(idx)
+            except Exception as e:
+                print(f"Error loading image {file_path}: {e}")
+
+    if not images:
         return None, None
-        
-    X = np.array(x_data)
-    y = tf.keras.utils.to_categorical(np.array(y_data), num_classes=len(CLASS_NAMES))
-    print(f"[Trigger 2] Preprocessed {len(X)} image tensors for fine-tuning.")
+
+    X = np.array(images, dtype=np.float32)
+    y = np.array(labels, dtype=np.int32)
+
     return X, y
 
-# -----------------------------------------------------------------------------
-# TRIGGER 3: RETRAINING USING CUSTOM MODEL AS PRE-TRAINED BASE
-# -----------------------------------------------------------------------------
+
 def run_retraining_pipeline():
-    """Loads existing custom model as a pre-trained base and fine-tunes on new data."""
-    X, y = preprocess_retrain_data()
+    """
+    Executes incremental fine-tuning on the existing base model using newly added records.
+    Dynamically aligns tensor resolution to avoid dense layer shape mismatch.
+    """
+    # 1. Load existing trained model
+    model = load_model()
     
-    if X is None or len(X) == 0:
-        print("[Trigger 3] Skipping retraining: Insufficient data samples.")
-        return {"status": "skipped", "reason": "No preprocessed data in DB"}
-        
-    print("[Trigger 3] Loading existing custom model as pre-trained model...")
-    pretrained_model = tf.keras.models.load_model(MODEL_PATH)
-    
-    # Freeze initial feature extraction layers; keep top classification layer trainable
-    for layer in pretrained_model.layers[:-2]:
-        layer.trainable = False
-        
-    pretrained_model.compile(
+    # 2. Extract input dimensions expected by model architecture (e.g., 150, 150)
+    target_size = get_model_target_size(model)
+
+    # 3. Load and preprocess training samples
+    X_train, y_train = load_retrain_data(target_size)
+
+    if X_train is None or len(X_train) == 0:
+        return {"status": "no_data", "message": "No new records available for retraining."}
+
+    # 4. Compile model with a conservative learning rate for transfer learning / fine-tuning
+    model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-        loss="categorical_crossentropy",
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
         metrics=["accuracy"]
     )
+
+    # 5. Execute fine-tuning epochs
+    history = model.fit(
+        X_train, 
+        y_train, 
+        epochs=3, 
+        batch_size=min(16, len(X_train)), 
+        verbose=1
+    )
+
+    # 6. Save updated weights back to disk
+    save_path = "models/brain_tumor_model.keras"
+    os.makedirs("models", exist_ok=True)
     
-    # Fine-tune model on new uploaded data
-    print("[Trigger 3] Executing model retraining...")
-    history = pretrained_model.fit(X, y, epochs=3, batch_size=4, verbose=1)
-    
-    # Save updated retrained model weights
-    pretrained_model.save(MODEL_PATH)
-    print(f"[Trigger 3] Retraining complete. Updated model saved to {MODEL_PATH}")
-    
+    try:
+        model.save(save_path)
+    except Exception:
+        # Fallback save using standard Keras API
+        keras.models.save_model(model, save_path)
+
+    final_acc = float(history.history["accuracy"][-1]) if "accuracy" in history.history else 1.0
+
     return {
         "status": "success",
-        "samples_trained": len(X),
-        "final_loss": float(history.history["loss"][-1]),
-        "final_accuracy": float(history.history["accuracy"][-1])
+        "final_accuracy": final_acc,
+        "samples_trained": len(X_train)
     }
