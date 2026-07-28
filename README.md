@@ -94,13 +94,20 @@ Ensure your trained Keras model is located inside the models/ directory matching
 ```
 models/tumor_model.keras
 ```
-# Running the API Locally and the app using streamlit
+# OPTION 1:Running the API Locally and the app using streamlit
 ```
 python -m streamlit run app.py
 ```
+# OPTION 2:running locally using docker
+```
+docker compose up --build
+```
 
- Section 4: Testing API Endpoints
+ # Section 4: Testing API Endpoints
 1. Using  UI (/docs)locally
+```
+uvicorn src.api:app --reload
+```
 Navigate to http://127.0.0.1:8000/docs.
 
 Select POST /predict and click Try it out.
