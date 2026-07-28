@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 
 # Import prediction and retraining pipeline modules from src
-from src.prediction import predict_image, get_model_target_size
+from src.prediction import predict_image, get_model_target_size, load_model
 from src.retrain import save_uploaded_image_and_metadata, run_retraining_pipeline
 
 # -----------------------------------------------------------------------------
@@ -53,18 +53,34 @@ if page == "Single Prediction":
         
         if uploaded_file is not None:
             image = Image.open(uploaded_file)
-            st.image(image, caption=f"Uploaded Scan: {uploaded_file.name}", use_column_width=True)
+            st.image(image, caption=f"Uploaded Scan: {uploaded_file.name}", use_container_width=True)
             
-            # Display tensor format info
-            target_dim = get_model_target_size(loaded_model)
+            # Safely fetch target dimensions without crashing if model loading fails
+            try:
+                loaded_model = load_model()
+                target_dim = get_model_target_size(loaded_model)
+            except Exception:
+                target_dim = get_model_target_size()
+
             st.info(f"Input Shape Formatted to: `{target_dim[0]}x{target_dim[1]} RGB`")
 
     with col2:
         st.subheader("2. Model Prediction Result")
         if uploaded_file is not None:
             with st.spinner("Executing TensorFlow model inference..."):
-                # Call prediction function from src/prediction.py
-                predicted_class, confidence, probabilities = predict_image(image)
+                # Execute prediction pipeline
+                res = predict_image(image)
+                
+                # Check if result is returned as a dictionary or a tuple
+                if isinstance(res, dict):
+                    predicted_class = res.get("label", "Unknown")
+                    confidence = res.get("confidence", 0.0)
+                    probabilities = res.get("probabilities", {predicted_class: confidence})
+                else:
+                    # Fallback if return is a tuple (class, confidence)
+                    predicted_class = res[0]
+                    confidence = res[1]
+                    probabilities = res[2] if len(res) > 2 else {predicted_class: confidence}
                 
                 # Display output status and confidence metric
                 st.success(f"**Predicted Label/Class:** {predicted_class}")
@@ -74,9 +90,10 @@ if page == "Single Prediction":
                 st.markdown("##### Class Probability Breakdown")
                 
                 # Render visual progress bar for each class label
-                for class_label, prob in probabilities.items():
-                    st.write(f"**{class_label}**")
-                    st.progress(float(prob), text=f"{prob * 100:.2f}%")
+                if isinstance(probabilities, dict):
+                    for class_label, prob in probabilities.items():
+                        st.write(f"**{class_label}**")
+                        st.progress(float(prob), text=f"{prob * 100:.2f}%")
         else:
             st.warning("👈 Please upload an MRI scan on the left panel to trigger prediction.")
 
@@ -102,9 +119,10 @@ elif page == "Data Visualizations":
         "**Data Story:** Raw MRI scans vary in resolution (from 256x256 to 512x512). "
         "Preprocessing resizes all images down to standardized dimensions (e.g., 128x128) to maintain tensor shape consistency across memory batches."
     )
+    target_dim = get_model_target_size()
     c1, c2 = st.columns(2)
     c1.metric("Raw Dataset Range", "256x256 to 512x512")
-    c2.metric("Preprocessed Tensor Input", f"{get_model_target_size()[0]}x{get_model_target_size()[1]} RGB")
+    c2.metric("Preprocessed Tensor Input", f"{target_dim[0]}x{target_dim[1]} RGB")
     
     st.divider()
     
@@ -119,7 +137,7 @@ elif page == "Data Visualizations":
 # FEATURE 3: BULK UPLOAD & RETRAINING TRIGGER
 # -----------------------------------------------------------------------------
 elif page == "Bulk Upload & Retraining":
-    st.title(" Model Retraining & Continuous Learning")
+    st.title("⚙️ Model Retraining & Continuous Learning")
     
     st.subheader("1. Data File Uploading & Database Logging")
     uploaded_files = st.file_uploader(
@@ -132,11 +150,11 @@ elif page == "Bulk Upload & Retraining":
         ["Glioma Tumor", "Meningioma Tumor", "No Tumor", "Pituitary Tumor"]
     )
     
-    if st.button(" Save Images to Database"):
+    if st.button("💾 Save Images to Database"):
         if uploaded_files:
             for f in uploaded_files:
                 save_uploaded_image_and_metadata(f, selected_label)
-            st.success(f"Saved {len(uploaded_files)} file(s) to storage and logged entries in SQLite database (`data/retrain_metadata.db`)!")
+            st.success(f"Saved {len(uploaded_files)} file(s) to storage and logged entries in database!")
         else:
             st.warning("Please select files to upload first.")
 
@@ -149,7 +167,7 @@ elif page == "Bulk Upload & Retraining":
         with st.spinner("Processing image tensors and executing transfer learning..."):
             try:
                 result = run_retraining_pipeline()
-                if result.get("status") == "success":
+                if isinstance(result, dict) and result.get("status") == "success":
                     st.success(f"Model retrained successfully! Final Accuracy: {result['final_accuracy'] * 100:.2f}%")
                     st.balloons()
                 else:
