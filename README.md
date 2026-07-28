@@ -15,7 +15,7 @@ An end-to-end Machine Learning Operations (MLOps) application for classifying br
 
 ---
 - youtube link:
-- brain tumor detection app:https://brain-tumor-detection-app-rl9i.onrender.com/
+- brain tumor detection app:https://summative-mlop-8dqfuormvgbx6xdf8yku8z.streamlit.app/
 - brain tumor locust testing:https://brain-tumor-locust-testing.onrender.com/
 
 ## 📁 Project Directory Structure
