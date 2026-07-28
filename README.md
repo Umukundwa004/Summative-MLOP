@@ -90,18 +90,18 @@ DEBUG=True
 ```
 MODEL_PATH=models/tumor_model.keras
 TARGET_IMAGE_SIZE=150
+```
 Ensure your trained Keras model is located inside the models/ directory matching MODEL_PATH:
 ```
-Plaintext
-```
 models/tumor_model.keras
-5. Running the API Locally
-#Launch the Streamlit App
+```
+# Running the API Locally and the app using streamlit
 ```
 python -m streamlit run app.py
 ```
+
  Section 4: Testing API Endpoints
-1. Using Swagger UI (/docs)locally
+1. Using  UI (/docs)locally
 Navigate to http://127.0.0.1:8000/docs.
 
 Select POST /predict and click Try it out.
@@ -109,7 +109,7 @@ Select POST /predict and click Try it out.
 Upload an MRI image (.jpg or .png) and click Execute.
 
 2. Using curl
-```Bash
+```
 curl -X 'POST' \
   '[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)' \
   -H 'accept: application/json' \
