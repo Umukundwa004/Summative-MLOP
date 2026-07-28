@@ -14,13 +14,24 @@ UPLOAD_DIR = os.path.join("data", "uploads")
 
 def init_db():
     """
-    Ensures the data directories and SQLite database table exist for storing new training records.
+    Ensures data directories and SQLite schema exist.
+    Recreates table if legacy schema is missing the file_path column.
     """
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # Check existing table columns if table exists
+    cursor.execute("PRAGMA table_info(retrain_images)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    # If table exists but lacks file_path column, drop and recreate
+    if columns and "file_path" not in columns:
+        cursor.execute("DROP TABLE retrain_images")
+        conn.commit()
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS retrain_images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
