@@ -1,23 +1,9 @@
-services:
-  app-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8000:7860"
-    environment:
-      - HOST=0.0.0.0
-      - PORT=7860
-    volumes:
-      - ./models:/app/models
+version: '3.8'
 
-  locust-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.locust
+services:
+  web:
+    build: .
     ports:
-      - "8089:8089"
-    depends_on:
-      - app-service
+      - "8501:8501"
     environment:
-      - LOCUST_HOST=http://app-service:7860
+      - PORT=8501
