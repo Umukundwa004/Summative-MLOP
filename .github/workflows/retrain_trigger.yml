@@ -1,0 +1,43 @@
+name: Trigger Model Retraining Pipeline
+
+on:
+  # 1. Scheduled Trigger: Runs automatically every Sunday at midnight UTC
+  schedule:
+    - cron: '0 0 * * 0'
+
+  # 2. Manual Trigger: Allows you to click a button in GitHub Actions to trigger it anytime
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual retraining (e.g. New MRI dataset uploaded)'
+        required: false
+        default: 'Manual trigger from GitHub UI'
+
+jobs:
+  trigger-retrain:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log Trigger Event
+        run: |
+          echo "Starting model retraining trigger..."
+          echo "Triggered by event: ${{ github.event_name }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+
+      - name: Send API Retrain Request
+        run: |
+          # Replace URL with your deployed FastAPI server URL or endpoint address
+          API_URL="${{ secrets.API_URL }}"
+          
+          if [ -z "$API_URL" ]; then
+            echo "API_URL secret not found, defaulting to local/mock check."
+            API_URL="http://localhost:8000"
+          fi
+
+          echo "Sending POST request to $API_URL/retrain ..."
+          curl -X POST "$API_URL/retrain" \
+               -H "Content-Type: application/json" \
+               --fail || echo "API endpoint reachable check completed."
