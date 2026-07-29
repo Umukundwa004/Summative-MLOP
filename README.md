@@ -13,7 +13,7 @@ An end-to-end Machine Learning Operations (MLOps) application for classifying br
 - **Deployment**: Docker, Streamlit Community Cloud
 
 ---
-- youtube link:https://youtu.be/73RrlK2WtfA
+- youtube link:https://www.youtube.com/watch?v=rW11FnUSfs4
 - brain tumor detection app:https://summative-mlop-8dqfuormvgbx6xdf8yku8z.streamlit.app/
 - brain tumor locust testing:https://brain-tumor-locust-testing.onrender.com/
 
